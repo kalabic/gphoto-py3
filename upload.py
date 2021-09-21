@@ -34,6 +34,8 @@ def parse_args(arg_input=None):
                     help='run upload to  gphoto')                
     parser.add_argument('--ls',dest='albums_list', action='store_true',
                     help='list all albums in gphoto')
+    parser.add_argument('--exclude', metavar='exclude', dest='exclude',
+                    help='regex to exclude')                    
     parser.add_argument('photos', metavar='photo',type=str, nargs='*',
                     help='filename of a photo to upload')
     return parser.parse_args(arg_input)
@@ -181,7 +183,7 @@ def upload_photos(session, photo_file_list, album_name):
 
             logging.info("Uploading photo -- \'{}\'".format(photo_file_name))
 
-            #upload item
+            #upload item 
             upload_token = session.post('https://photoslibrary.googleapis.com/v1/uploads', photo_bytes)
 
             if (upload_token.status_code == 200) and (upload_token.content):
@@ -212,7 +214,7 @@ def upload_photos(session, photo_file_list, album_name):
         pass
 
 
-def getFilesInFolder(folder_path):
+def getFilesInFolder(folder_path,exclude):
 
     #gphotos can only deal with (according to docs):
     #Photos:	BMP, GIF, HEIC, ICO, JPG, PNG, TIFF, WEBP, some RAW files.	200 MB
@@ -221,8 +223,9 @@ def getFilesInFolder(folder_path):
     regex = r'\.(BMP|GIF|HEIC|ICO|JPG|PNG|TIFF|WEBP|RAW|3GP|3G2|ASF|AVI|DIVX|M2T|M2TS|M4V|MKV|MMV|MOD|MOV|MP4|MPG|MTS|TOD|WMV)$'
     result = []
     for file in list(Path(folder_path).rglob("*")):
-        if file and re.search(regex, str(file),re.IGNORECASE):
-            result.append(file)
+        if not (exclude and re.search(exclude, str(file),re.IGNORECASE)): 
+            if file and re.search(regex, str(file),re.IGNORECASE):
+                result.append(file)
 
     return result
 
@@ -233,10 +236,10 @@ def getFolderList(root_path):
     return result    
 
 
-def uploadToAlbums(session,root_path):
+def uploadToAlbums(session, root_path, exclude):
     album_list = getFolderList(root_path)
     for album in album_list:
-        files = getFilesInFolder(root_path + '/' + album)
+        files = getFilesInFolder(root_path + '/' + album, exclude )
         if files:
             upload_photos(session, files, album)
 
@@ -285,7 +288,7 @@ def main():
 
     session = get_authorized_session(args.auth_file)
     if args.run_upload == True:
-        uploadToAlbums(session,args.root_folder)
+        uploadToAlbums(session, args.root_folder, args.exclude)
 
     # As a quick status check, dump the albums and their key attributes
     if args.albums_list == True:
