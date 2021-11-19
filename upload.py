@@ -6,6 +6,7 @@
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2.credentials import Credentials
+from datetime import datetime
 import json
 import os
 import os.path
@@ -52,7 +53,8 @@ def auth(scopes):
 def get_authorized_session(auth_token_file):
 
     scopes=['https://www.googleapis.com/auth/photoslibrary',
-            'https://www.googleapis.com/auth/photoslibrary.sharing']
+            'https://www.googleapis.com/auth/photoslibrary.sharing',
+            'https://www.googleapis.com/auth/photoslibrary.edit.appcreateddata']
 
     cred = None
 
@@ -156,19 +158,17 @@ def upload_photos(session, photo_file_list, album_name):
     if album_name and not album_id:
         return
 
-    files_list = list(getAlbumContent(session,album_id)) 
-    # for item in files_list:
-    #      pprint(item)
-
+    # Get album content
+    existing_files_list = list(getAlbumContent(session,album_id)) 
 
     session.headers["Content-type"] = "application/octet-stream"
     session.headers["X-Goog-Upload-Protocol"] = "raw"
 
     for photo_file_name in photo_file_list:
 
-            #if file with this name already exists
+            #if file with this name already exists in this album
             #don't upload it  
-            if os.path.basename(photo_file_name) in files_list:
+            if os.path.basename(photo_file_name) in existing_files_list:
                 logging.info("Skipping photo(already exist in album) -- \'{}\'".format(photo_file_name))
                 continue
             try:
@@ -200,8 +200,18 @@ def upload_photos(session, photo_file_list, album_name):
                         logging.error("Could not add \'{0}\' to library -- {1}".format(os.path.basename(photo_file_name), status["message"]))
                     else:
                         logging.info("Added \'{}\' to library and album \'{}\' ".format(os.path.basename(photo_file_name), album_name))
+
+                    # Insert creation time into item description
+                    try:
+                        creation_date = getFileCreationDate(photo_file_name)
+                        descr = album_name + ' @' + creation_date 
+                        setDescription(session, resp["newMediaItemResults"][0]["mediaItem"]["id"], descr)
+                    except ValueError as exp:
+                        print ("Error", exp) 
+                    ####    
                 else:
                     logging.error("Could not add \'{0}\' to library. Server Response -- {1}".format(os.path.basename(photo_file_name), resp))
+
 
             else:
                 logging.error("Could not upload \'{0}\'. Server Response - {1}".format(os.path.basename(photo_file_name), upload_token))
@@ -212,6 +222,39 @@ def upload_photos(session, photo_file_list, album_name):
         del(session.headers["X-Goog-Upload-File-Name"])
     except KeyError:
         pass
+
+# returns string containing the file's creation date
+def getFileCreationDate(file_path):
+    try:
+        stat = os.stat(file_path)
+    except OSError as err:
+        logging.error("Could not get stat for  \'{0}\' -- {1}".format(file_path, err))
+        raise ValueError("Can't get stat for file")
+
+    early_time = min(stat.st_atime,stat.st_mtime,stat.st_ctime)
+    if early_time == 0:
+         raise ValueError("File has 0 creation time")
+    res=datetime.fromtimestamp(early_time).strftime("%Y-%m-%d %H:%M:%S")
+    return res    
+
+
+#set description to file
+def setDescription(session, media_item_id, description):
+    params = {
+        'updateMask': 'description'
+    }
+    url = 'https://photoslibrary.googleapis.com/v1/mediaItems/' + media_item_id
+
+    # Unfortunetely API doesn't allow to change creation time.
+    create_body = json.dumps( { "description": description ,
+                                #"mediaMetadata": { "creationTime":"2014-10-02T15:01:23Z"}
+                              }, 
+                              indent=4)
+    resp = session.patch(url, params=params,data=create_body).json()
+    #print(resp)
+
+    
+
 
 
 def getFilesInFolder(folder_path,exclude):
