@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+
+#
+# Wrapper for gphoto.py to enable it to be used from any location from command line.
+# Add directory where you downloaded files from repository to local user PATH.
+#
+
+# Where is script called from.
+exec_dir=$(pwd -P)
+
+# Directory name of the script no matter where it is being called from.
+# (see: https://stackoverflow.com/a/246128/852428)
+script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd -P)
+
+#
+# Installation action ("gphotopy --install") will install python environment.
+# Update client id and client secret in files in 'auth' subdirectory where scripts are.
+# Add directory with scripts to your local user PATH.
+#
+if [ "$1" = "--install" ]
+then
+
+  if ! [ "$exec_dir" = "$script_dir" ]
+  then
+    echo "error: Install must run from directory where script is located."
+    echo "error: Change directory and try again."
+    exit 1
+  fi
+
+  if ! python3.10 -m venv venv
+  then
+    echo "error: venv failed, cannot continue"
+    exit 1
+  fi
+
+  if ! source venv/bin/activate
+  then
+    echo "error: venv failed, cannot continue"
+    exit 1
+  fi
+
+  if ! pip install -r requirements.txt
+  then
+    echo "error: requirements install failed, cannot continue"
+    exit 1
+  fi
+
+  echo ""
+  echo "INFO: Installation done. You need to authorize with Google now:"
+  echo "INFO:"
+  echo "INFO: * Update client id and secret inside 'auth/client_id.json'."
+  echo "INFO:"
+  echo "INFO: * Run again with '--auth' argument. This will open default system browser."
+  echo "INFO:   Works best with Chrome. Issues with Firefox."
+  echo "INFO:"
+  echo "INFO: * Add this directory to your 'PATH' environment variable and use 'gphotopy'"
+  echo "INFO:   from command line (not python script 'gphoto.py')."
+  echo "INFO:"
+  echo "INFO: * Run 'gphotopy -h' for help."
+  echo ""
+  exit 0
+fi
+
+script_args=""
+for unsafe_var in "$@"
+do
+
+  # Replace spaces with '\ ' character in our directory path.
+  var=`printf "%s" "$unsafe_var" | sed 's/ /\\\\ /g'`
+
+  # For debugging Unicode and such.
+  # echo "UNSAFE: $unsafe_var"
+  # echo "  SAFE: $var"
+
+  if [ "$unsafe_var" = "$var" ]
+  then
+    script_args+=" "
+    script_args+=$unsafe_var
+  else
+    script_args+=" "
+    script_args+=$var
+  fi
+
+done
+
+if [ ! -f "$script_dir/venv/bin/activate" ]
+then
+  echo "error: venv failed, cannot continue"
+  exit 1
+fi
+
+set -e
+
+if ! source "$script_dir/venv/bin/activate"
+then
+  echo "error: venv failed, cannot continue"
+  exit 1
+fi
+
+# For debugging: set -o xtrace
+bash -c "python3.10 -u $script_dir/gphoto.py $script_args"
+
+# Exit with the same result like gphoto.py from python shell above.
+exit $?

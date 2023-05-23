@@ -4,6 +4,7 @@
 #that you want to reflect as Google Photos albums.
 
 from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.exceptions import RefreshError
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2.credentials import Credentials
 from datetime import datetime
@@ -13,6 +14,7 @@ import os.path
 import argparse
 import logging
 import re
+import sys
 from pprint import pprint
 from pathlib import Path
 
@@ -22,64 +24,88 @@ from pathlib import Path
 
 
 def parse_args(arg_input=None):
-    parser = argparse.ArgumentParser(description='Upload photos to Google Photos.')
-    parser.add_argument('--auth ', metavar='auth_file', dest='auth_file', default='auth/auth.txt',
-                    help='file for reading/storing user authentication tokens')
-    parser.add_argument('--path ', metavar='root_folder', dest='root_folder', default='.',
-                    help='path to root of album album folders')                
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='''\
+Upload photos to Google Photos. Run first time with 'auth' argument to
+create auth token, update your client id and secret in 'auth/client_id.json'.
+Auth is saved into 'auth/token.json' and 'auth' argument is not needed
+any more.
+
+Examples:
+  Create auth token: gphoto.py --auth
+     Upload a photo: gphoto.py --up --album myalbum myphoto.jpeg
+    List all albums: gphoto.py --ls
+List items in album: gphoto.py --ls --album myalbum
+
+''')
+    parser.add_argument('--auth ', dest='create_auth', action='store_true',
+                    help="Create authentication token if it does not exist, or try to load it and exit.")
+    parser.add_argument('--clientid', metavar='client_id_file', dest='client_id_file',
+                    help="File where client id and secret is stored. Used in combination with '--auth'. (optional, default is 'auth/client_id.json'")
+    parser.add_argument('--token', metavar='token_file', dest='token_file',
+                    help="File where authentication token is stored. (optional, default is 'auth/token.json'")
+#    parser.add_argument('--path ', metavar='root_folder', dest='root_folder', default='.',
+#                    help="Path to root of album album folders.")
     parser.add_argument('--album', metavar='album_name', dest='album_name',
-                    help='name of photo album to create (if it doesn\'t exist). Any uploaded photos will be added to this album.')
+                    help="Name of photo album to create (if it doesn't exist). Any uploaded photos will be added to this album.")
     parser.add_argument('--log', metavar='log_file', dest='log_file',
-                    help='name of output file for log messages')
+                    help="Name of output file for log messages.")
     parser.add_argument('--up',dest='run_upload', action='store_true',
-                    help='run upload to  gphoto')                
+                    help="Run upload to gphoto.")
     parser.add_argument('--ls',dest='albums_list', action='store_true',
-                    help='list all albums in gphoto')
-    parser.add_argument('--exclude', metavar='exclude', dest='exclude',
-                    help='regex to exclude')                    
+                    help="List all albums in gphoto. Combination with '--album' will list all items in album.")
+#    parser.add_argument('--exclude', metavar='exclude', dest='exclude',
+#                    help="Regex to exclude.")
     parser.add_argument('photos', metavar='photo',type=str, nargs='*',
-                    help='filename of a photo to upload')
+                    help="filename of a photo to upload")
     return parser.parse_args(arg_input)
 
 
-def auth(scopes):
+def auth(client_id_file, scopes):
     flow = InstalledAppFlow.from_client_secrets_file(
-        'auth/client_id.json',
+        client_id_file,
         scopes=scopes)
     
-    credentials = flow.run_console()
+    credentials = flow.run_local_server(host='localhost',
+                                        port=8080,
+                                        authorization_prompt_message="",
+                                        success_message='The auth flow is complete; you may close this window.',
+                                        open_browser=True)
+
     return credentials
 
-def get_authorized_session(auth_token_file):
 
+def get_authorized_session(client_id_file, token_file):
     scopes=['https://www.googleapis.com/auth/photoslibrary',
             'https://www.googleapis.com/auth/photoslibrary.sharing',
             'https://www.googleapis.com/auth/photoslibrary.edit.appcreateddata']
 
     cred = None
 
-    if auth_token_file:
-        try:
-            cred = Credentials.from_authorized_user_file(auth_token_file, scopes)
-        except OSError as err:
-            logging.debug("Error opening auth token file - {0}".format(err))
-        except ValueError:
-            logging.debug("Error loading auth tokens - Incorrect format")
+    try:
+        cred = Credentials.from_authorized_user_file(token_file,scopes)
+    except OSError as err:
+        logging.debug("Error opening auth token file - {0}".format(err))
+    except ValueError:
+        logging.debug("Error loading auth tokens - Incorrect format")
 
-
-    if not cred:
-        cred = auth(scopes)
-        #save credentials for next time
-        save_cred(cred,auth_token_file)	
+    # Create session and return if saved credentials already exist.
+    if cred is not None:
+        session = AuthorizedSession(cred)
+        return session
+        
+    try:
+        # If saved credentials do not exist, try to create them and save for later.
+        cred = auth(client_id_file, scopes)
+        
+        save_cred(cred, token_file)
+        
+    except OSError as err:
+        logging.error("Could not load/save auth tokens - {0}".format(err))
+        return None
 
     session = AuthorizedSession(cred)
-
-    if auth_token_file:
-        try:
-            save_cred(cred, auth_token_file)
-        except OSError as err:
-            logging.debug("Could not save auth tokens - {0}".format(err))
-
     return session
 
 
@@ -107,11 +133,19 @@ def getAlbums(session, appCreatedOnly=False):
 
     while True:
 
-        albums = session.get('https://photoslibrary.googleapis.com/v1/albums', params=params).json()
-
-        logging.debug("Server response: {}".format(albums))
+        try:
+            albums = session.get('https://photoslibrary.googleapis.com/v1/albums', params=params).json()
+        except (RefreshError) as err:
+            # Relevant for this error: https://stackoverflow.com/a/59202851/852428
+            logging.error("google.auth.exception - RefreshError - {0}".format(err))
+            print("NOTE: When RefreshError happens you likely need to delete and request token again.")
+            return None
+        except OSError as err:
+            logging.error("Failed to list albums - {0}".format(err))
+            return None
 
         if 'albums' in albums:
+            logging.debug("Server response: {}".format(albums))
 
             for a in albums["albums"]:
                 yield a
@@ -120,6 +154,51 @@ def getAlbums(session, appCreatedOnly=False):
                 params["pageToken"] = albums["nextPageToken"]
             else:
                 return
+
+        elif "error" in albums:
+            error = albums["error"]
+            if "code" in error and "message" in error and "status" in error:
+                logging.debug("Server response: {}".format(albums))
+                print("error: {}; {}; {}".format(error["code"], error["status"], error["message"]))
+            else:
+                logging.error("Server response: {}".format(albums))
+                
+            return None
+        
+        else:
+            return
+
+def getAlbumId(session, album_name, app_created_only=False):
+
+    params = {
+            'excludeNonAppCreatedData': app_created_only
+    }
+
+    while True:
+
+        albums = session.get('https://photoslibrary.googleapis.com/v1/albums', params=params).json()
+
+        if 'albums' in albums:
+            logging.debug("Server response: {}".format(albums))
+
+            for a in albums["albums"]:
+                if a["title"] == album_name:
+                    return a["id"]
+
+            if 'nextPageToken' in albums:
+                params["pageToken"] = albums["nextPageToken"]
+            else:
+                return
+
+        elif "error" in albums:
+            error = albums["error"]
+            if "code" in error and "message" in error and "status" in error:
+                logging.debug("Server response: {}".format(albums))
+                print("error: {}; {}; {}".format(error["code"], error["status"], error["message"]))
+            else:
+                logging.error("Server response: {}".format(albums))
+                
+            return None
 
         else:
             return
@@ -144,6 +223,14 @@ def create_or_retrieve_album(session, album_title):
     if "id" in resp:
         logging.info("Uploading into NEW photo album -- \'{0}\'".format(album_title))
         return resp['id']
+    elif "error" in resp:
+        error = resp["error"]
+        if "code" in error and "message" in error and "status" in error:
+            logging.debug("Could not find or create photo album '\{0}\'. Server Response: {1}".format(album_title, resp))
+            print("error: {}; {}; {}".format(error["code"], error["status"], error["message"]))
+        else:
+            logging.error("Could not find or create photo album '\{0}\'. Server Response: {1}".format(album_title, resp))
+        return None
     else:
         logging.error("Could not find or create photo album '\{0}\'. Server Response: {1}".format(album_title, resp))
         return None
@@ -156,7 +243,7 @@ def upload_photos(session, photo_file_list, album_name):
 
     # interrupt upload if an upload was requested but could not be created
     if album_name and not album_id:
-        return
+        return False
 
     # Get album content
     existing_files_list = list(getAlbumContent(session,album_id)) 
@@ -164,7 +251,10 @@ def upload_photos(session, photo_file_list, album_name):
     session.headers["Content-type"] = "application/octet-stream"
     session.headers["X-Goog-Upload-Protocol"] = "raw"
 
-    for photo_file_name in photo_file_list:
+    for photo_file_name_unsafe in photo_file_list:
+
+            photo_file_name = photo_file_name_unsafe.encode(encoding = 'UTF-8', errors = 'strict')
+            # For debugging Unicode: print("PHOTO FILE NAME: {}".format(photo_file_name))
 
             #if file with this name already exists in this album
             #don't upload it  
@@ -200,6 +290,9 @@ def upload_photos(session, photo_file_list, album_name):
                         logging.error("Could not add \'{0}\' to library -- {1}".format(os.path.basename(photo_file_name), status["message"]))
                     else:
                         logging.info("Added \'{}\' to library and album \'{}\' ".format(os.path.basename(photo_file_name), album_name))
+                        productUrl = resp["newMediaItemResults"][0]["mediaItem"]["productUrl"]
+                        filename = resp["newMediaItemResults"][0]["mediaItem"]["filename"]
+                        print("{} URL: {}".format(filename,productUrl))
 
                     # Insert creation time into item description
                     try:
@@ -222,6 +315,8 @@ def upload_photos(session, photo_file_list, album_name):
         del(session.headers["X-Goog-Upload-File-Name"])
     except KeyError:
         pass
+        
+    return True
 
 # returns string containing the file's creation date
 def getFileCreationDate(file_path):
@@ -312,6 +407,47 @@ def getAlbumContent(session,album_id):
         else:
             return
 
+def printAlbumContent(session,album_name):
+
+    album_id = getAlbumId(session,album_name)
+
+    if album_id == None:
+        print("Album not found: {}".format(album_name))
+        return False
+
+    params = {
+         #'excludeNonAppCreatedData': appCreatedOnly
+        "pageSize": "100",
+        "albumId": album_id
+    }
+
+    print("{:<40} | {:>8}".format("FILE NAME","DESCRIPTION"))
+
+    while True:
+        resp = session.post('https://photoslibrary.googleapis.com/v1/mediaItems:search', params=params).json()
+
+        logging.debug("Server response: {}".format(resp))
+
+        if 'mediaItems' in resp:
+
+            for a in resp["mediaItems"]:
+                if "filename" in a:
+                    if "description" in a:
+                        print("{:<40} | {:>8}".format(a["filename"], a["description"]))
+                    else:
+                        print("{:<40} |".format(a["filename"]))
+                else:
+                    print("{:<40} |".format("????"))
+
+            if 'nextPageToken' in resp:
+                params["pageToken"] = resp["nextPageToken"]
+            else:
+                return True
+
+        else:
+             # TODO: Check this
+            return True
+
 
 def printAlbums(session):
     print("{:<50} | {:>8} | {} ".format("PHOTO ALBUM","# PHOTOS", "IS WRITEABLE?"))
@@ -324,19 +460,108 @@ def main():
 
     args = parse_args()
 
+    action_count = 0
+    if args.create_auth == True:
+        action_count += 1
+
+    if args.albums_list == True:
+        action_count += 1
+
+    if args.run_upload == True:
+        action_count += 1
+
+    if action_count == 0:
+        print("Run 'gphoto.py -h' for help.")
+        sys.exit(1)
+
+    if action_count != 1:
+        print("error: Multiple actions specified")
+        sys.exit(1)
+
     logging.basicConfig(format='%(asctime)s %(module)s.%(funcName)s:%(levelname)s:%(message)s',
                     datefmt='%m/%d/%Y %I_%M_%S %p',
                     filename=args.log_file,
                     level=logging.INFO)
 
-    session = get_authorized_session(args.auth_file)
+    # Default paths are relative to python script. Paths in arguments are relative to current directory of execution in command line.
+    client_id_file = sys.path[0] + "/auth/client_id.json";
+    token_file = sys.path[0] + "/auth/token.json";
+
+    #
+    # Begin validation of given arguments.
+    #
+
+    # If client_id_file argument is given, warn that it is used only during authentication action.
+    if args.create_auth == False and args.client_id_file is not None:
+        print("warning: argument 'clientid' is used only with 'auth'")
+
+    # If client_id_file argument is given for authentication action, file must exist.
+    if args.create_auth == True and args.client_id_file is not None:
+        if args.client_id_file == "":
+            print("error: argument 'clientid'; expected non empty argument")
+            sys.exit(1)
+        elif os.path.exists(args.client_id_file) == False:
+            print("error: no such file; {}".format(args.client_id_file))
+            sys.exit(1)
+        else:
+            client_id_file = os.path.abspath(args.client_id_file)
+
+    # If token_file argument is given, file must exist if argument 'auth' is not specified (so, not an authentication action).
+    if args.token_file is not None:
+        if args.token_file == "":
+            print("error: argument 'token_file'; expected non empty argument")
+            sys.exit(1)
+        else:
+            token_file = os.path.abspath(args.token_file)
+
+    if args.create_auth == False and os.path.exists(token_file) == False:
+        print("error: no such file; {}".format(token_file))
+        sys.exit(1)
+
     if args.run_upload == True:
-        uploadToAlbums(session, args.root_folder, args.exclude)
+        if args.album_name is None:
+            print("error: argument 'album'; expected for upload")
+            sys.exit(1)
+        elif args.album_name == "":
+            print("error: argument 'album'; expected non empty argument for upload")
+            sys.exit(1)
+        elif len(args.photos) == 0:
+            print("error: argument 'photos'; expected for upload")
+            sys.exit(1)
+        elif args.photos[0] == "":
+            print("error: argument 'photos'; expected non empty argument for upload")
+            sys.exit(1)
+        elif os.path.exists(args.photos[0]) == False:
+            print("error: no such file; {}".format(args.photos[0]))
+            sys.exit(1)
 
-    # As a quick status check, dump the albums and their key attributes
+    #
+    # End of validation.
+    #
+
+    session = get_authorized_session(client_id_file, token_file)
+
+    # If action to create authentication token was requested, than it is the only thing to do (and it is done every time anyway), so exit.
+    if args.create_auth == True:
+        if session is not None:
+            print("Auth token exists and seems valid.")
+        return
+
+    if args.run_upload == True:
+        if upload_photos(session, args.photos, args.album_name) == False:
+            sys.exit(1)
+        return
+
     if args.albums_list == True:
-        printAlbums(session)
-
+        if args.album_name is None:
+            printAlbums(session)
+        elif args.album_name == "":
+            print("error: argument 'album'; expected non empty argument")
+            sys.exit(1)
+        else:
+            if printAlbumContent(session,args.album_name) == False:
+                sys.exit(1)
+        return
    
 if __name__ == '__main__':
   main()

@@ -1,0 +1,2 @@
+google_auth_oauthlib==1.0.0
+protobuf==4.23.1
