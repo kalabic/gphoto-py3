@@ -483,9 +483,8 @@ def main():
                     filename=args.log_file,
                     level=logging.INFO)
 
-    # Default paths are relative to python script. Paths in arguments are relative to current directory of execution in command line.
-    client_id_file = sys.path[0] + "/auth/client_id.json";
-    token_file = sys.path[0] + "/auth/token.json";
+    client_id_file = os.path.expanduser("~/.config/gphoto-py3/client_id.json");
+    token_file = os.path.expanduser("~/.config/gphoto-py3/token.json");
 
     #
     # Begin validation of given arguments.

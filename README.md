@@ -7,7 +7,7 @@ Bash and PowerShell wrappers for `gphoto.py`. Use them with the same command lin
 2. Go to folder where you downloaded files from repository, run `gphotopy --install`.
    - (it will create Python virtual environment and download dependencies)
 3. Authorize with Google:
-   - Update client id and secret inside `auth/client_id.json`.
+   - Update client id and secret inside `~/.config/gphoto-py3/client_id.json`.
    - Run once `gphotopy --auth`, that will open system browser and ask permission to give access to your Google Photos to this script.
 4. Add script directory to your PATH environment variable and use `gphotopy` (not Python script `gphoto.py`).
 5. Run 'gphotopy -h' for help.
@@ -43,9 +43,9 @@ optional arguments:
   --clientid client_id_file
                         File where client id and secret is stored. Used in
                         combination with '--auth'. (optional, default is
-                        'auth/client_id.json'
+                        '~/.config/gphoto-py3/client_id.json'
   --token token_file    File where authentication token is stored. (optional,
-                        default is 'auth/token.json'
+                        default is '~/.config/gphoto-py3/token.json'
   --album album_name    Name of photo album to create (if it doesn't exist).
                         Any uploaded photos will be added to this album.
   --log log_file        Name of output file for log messages.
@@ -69,7 +69,7 @@ optional arguments:
 3. Run:
    - `pip install -r requirements.txt` - download dependencies
 4. Authorize with Google:
-   - Update client id and secret inside `auth/client_id.json`.
+   - Update client id and secret inside `~/.config/gphoto-py3/client_id.json`.
    - Run once `python gphoto.py --auth`, that will open system browser and ask permission to give access to your Google Photos to this script.
 5. Now run the script via `python gphoto.py` as desired. Use `python gphoto.py -h` to get help. 'auth' argument is not needed any more if previous step was successful.
 
@@ -83,7 +83,7 @@ optional arguments:
    - `pip install -r requirements.txt` - download dependencies
    - `deactivate` - exit Python shell
 4. Authorize with Google:
-   - Update client id and secret inside `auth/client_id.json`.
+   - Update client id and secret inside `~/.config/gphoto-py3/client_id.json`.
    - (activate venv when using script)
    - Run once `python gphoto.py --auth`, that will open system browser and ask permission to give access to your Google Photos to this script.
 5. Again, always first activate Python venv when using script if you decided to install it this way (`source venv/bin/activate`).

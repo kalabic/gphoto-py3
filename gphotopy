@@ -12,9 +12,14 @@ exec_dir=$(pwd -P)
 # (see: https://stackoverflow.com/a/246128/852428)
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd -P)
 
+# Configuration files are inside subdirectory in user's '.config' directory.
+config_dir=~/.config/gphoto-py3
+
 #
-# Installation action ("gphotopy --install") will install python environment.
-# Update client id and client secret in files in 'auth' subdirectory where scripts are.
+# Installation action ("gphotopy --install") will install python environment and
+# copy default 'client_id.json' into '~/.config/gphoto-py3' directory. Update
+# client id and client secret there, not in files in 'auth' subdirectory where
+# scripts are.
 # Add directory with scripts to your local user PATH.
 #
 if [ "$1" = "--install" ]
@@ -45,10 +50,35 @@ then
     exit 1
   fi
 
+  #
+  # Check if '~/.config/gphoto-py3' exists, if not create empty one.
+  #
+  if [ ! -d "$config_dir" ]
+  then
+    mkdir -p "$config_dir"
+    result=$?
+    if [ $result -ne 0 ]; then
+      echo "error: failed to create '$config_dir'"
+      exit 1
+    fi
+  fi
+
+  client_id_file=~/.config/gphoto-py3/client_id.json
+  if [ ! -f "$client_id_file" ]
+  then
+    client_id_source="${script_dir}/auth/client_id.json"
+    cp $client_id_source $client_id_file
+    result=$?
+    if [ $result -ne 0 ]; then
+      echo "error: failed to create default 'client_id.json' in '$config_dir'"
+      exit 1
+    fi
+  fi
+
   echo ""
   echo "INFO: Installation done. You need to authorize with Google now:"
   echo "INFO:"
-  echo "INFO: * Update client id and secret inside 'auth/client_id.json'."
+  echo "INFO: * Update client id and secret inside '~/.config/gphoto-py3/client_id.json'."
   echo "INFO:"
   echo "INFO: * Run again with '--auth' argument. This will open default system browser."
   echo "INFO:   Works best with Chrome. Issues with Firefox."
