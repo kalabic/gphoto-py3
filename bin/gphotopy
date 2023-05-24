@@ -10,7 +10,7 @@ exec_dir=$(pwd -P)
 
 # Directory name of the script no matter where it is being called from.
 # (see: https://stackoverflow.com/a/246128/852428)
-script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd -P)
+script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && cd ..; pwd -P)
 
 #
 # Installation action ("gphotopy --install") will install python environment.
@@ -22,10 +22,11 @@ then
 
   if ! [ "$exec_dir" = "$script_dir" ]
   then
-    echo "error: Install must run from directory where script is located."
-    echo "error: Change directory and try again."
+    echo "error: Install must run from directory where Python script is located. Change directory and try again."
     exit 1
   fi
+
+  echo "Setting up Python virtual environment..."
 
   if ! python3.10 -m venv venv
   then
@@ -53,8 +54,8 @@ then
   echo "INFO: * Run again with '--auth' argument. This will open default system browser."
   echo "INFO:   Works best with Chrome. Issues with Firefox."
   echo "INFO:"
-  echo "INFO: * Add this directory to your 'PATH' environment variable and use 'gphotopy'"
-  echo "INFO:   from command line (not python script 'gphoto.py')."
+  echo "INFO: * Add 'bin/' directory with Bash, PS1 and other native scripts to your 'PATH'"
+  echo "INFO:   variable and use them from command line (not python script 'gphoto.py')."
   echo "INFO:"
   echo "INFO: * Run 'gphotopy -h' for help."
   echo ""

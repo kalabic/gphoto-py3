@@ -4,7 +4,8 @@
 #
 
 $exec_dir = (Get-Item .).FullName
-$script_dir = Split-Path $MyInvocation.MyCommand.Path
+$ps1_script_dir = Split-Path $MyInvocation.MyCommand.Path
+$script_dir = Split-Path $ps1_script_dir
 $activate_venv_path = "$script_dir\venv\Scripts\Activate.ps1"
 
 # For debugging directories as seen by process on Windows.
@@ -21,8 +22,7 @@ $activate_venv_path = "$script_dir\venv\Scripts\Activate.ps1"
 if ($args[0] -match "--install")
 {
   if ($exec_dir -ne $script_dir) {
-    Write-Host "error: Install must run from directory where script is located."
-    Write-Host "error: Change directory and try again."
+    Write-Host "error: Install must run from directory where Python script is located. Change directory and try again."
     return
   }
 
@@ -57,8 +57,8 @@ if ($args[0] -match "--install")
   Write-Host "INFO: * Run again with '--auth' argument. This will open default system browser."
   Write-Host "INFO:   Works best with Chrome. Issues with Firefox."
   Write-Host "INFO:"
-  Write-Host "INFO: * Add this directory to your 'PATH' environment variable and use 'gphotopy.ps1'"
-  Write-Host "INFO:   from command line (not python script 'gphoto.py')."
+  Write-Host "INFO: * Add 'bin/' directory with Bash, PS1 and other native scripts to your 'PATH'"
+  Write-Host "INFO:   variable and use them from command line (not python script 'gphoto.py')."
   Write-Host "INFO:"
   Write-Host "INFO: * Run 'gphotopy.ps1 -h' for help."
   Write-Host ""

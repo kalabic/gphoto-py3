@@ -1,16 +1,19 @@
-# gphotopy, gphotopy.ps1
+# bin/gphotopy, bin/gphotopy.ps1
 Bash and PowerShell wrappers for `gphoto.py`. Use them with the same command line arguments (see help: `gphotopy -h`).
 
 ## Installing and running
-**WINDOWS:** Remember, you need to run PowerShell script `gphotopy.ps1` in these steps, not `gphotopy` or `gphoto.py`!
+First and foremost, add 'bin' subdirectory with native scripts from here to your PATH environment variable. And make sure you are able to start one of these scripts native to your system from other places from command line, for example your home folder. There is no point in using them if this does not work for you.
+
 1. Make sure you have Python 3.10 installed on your system.
-2. Go to folder where you downloaded files from repository, run `gphotopy --install`.
+2. Go to folder with gphoto.py Python script (root of repository), run `gphotopy --install` (on Windows `gphotopy.ps1 --install`).
    - (it will create Python virtual environment and download dependencies)
 3. Authorize with Google:
    - Update client id and secret inside `auth/client_id.json`.
+   - (already here you can make another test by runing following step from home root folder, or any other, it should work)
    - Run once `gphotopy --auth`, that will open system browser and ask permission to give access to your Google Photos to this script.
-4. Add script directory to your PATH environment variable and use `gphotopy` (not Python script `gphoto.py`).
-5. Run 'gphotopy -h' for help.
+4. Run 'gphotopy -h' for help.
+
+And now you should be able to upload to Google Photo from command line from any location on your disk. Native scripts will automatically start Python script inside Python virtual environment and pass all provided arguments.
 
 ## NOTE:
 1. Although script is fairly simple, you need to be familiar with Google's Cloud platform to get your own client id and client secret to enable it to use Google's server APIs. More details here in [wiki](https://github.com/kalabic/gphotos-upload-py3/wiki#google-photos-api-prerequisites).
