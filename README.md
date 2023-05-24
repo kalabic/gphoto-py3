@@ -2,14 +2,13 @@
 Bash and PowerShell wrappers for `gphoto.py`. Use them with the same command line arguments (see help: `gphotopy -h`).
 
 ## Installing and running
-First and foremost, add 'bin' subdirectory with native scripts from here to your PATH environment variable. And make sure you are able to start one of these scripts native to your system from other places from command line, for example your home folder. There is no point in using them if this does not work for you.
+***First and foremost***, add 'bin' subdirectory with native shell scripts from here to your PATH environment variable. And make sure you are able to start them from other places from command line, for example your home folder. There is no point in using them if this does not work for you.
 
-1. Make sure you have Python 3.10 installed on your system.
-2. Go to folder with gphoto.py Python script (root of repository), run `gphotopy --install` (on Windows `gphotopy.ps1 --install`).
-   - (it will create Python virtual environment and download dependencies)
+1. Check that you have Python 3.10+ installed on your system. Probably works with few older versions, but you never know.
+2. From home folder or anywhere else (it should work assuming PATH was updated), try running native script without any arguments. It will automatically start setting up Python virtual environment inside Python script directory, as expected.
+   - (it will create venv subfolder and download dependencies)
 3. Authorize with Google:
-   - Update client id and secret inside `auth/client_id.json`.
-   - (already here you can make another test by runing following step from home root folder, or any other, it should work)
+   - Update client id and secret inside `auth/client_id.json` subdirectory of Python script.
    - Run once `gphotopy --auth`, that will open system browser and ask permission to give access to your Google Photos to this script.
 4. Run 'gphotopy -h' for help.
 

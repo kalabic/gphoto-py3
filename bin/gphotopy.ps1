@@ -1,6 +1,6 @@
 #
-# Wrapper for gphoto.py to enable it to be used from any location from command line.
-# Add directory where you downloaded files from repository to local user PATH.
+# Wrapper for Python scripts to enable them to be used from any location from command line.
+# Add directory with native system scripts to local user PATH.
 #
 
 $exec_dir = (Get-Item .).FullName
@@ -15,15 +15,15 @@ $activate_venv_path = "$script_dir\venv\Scripts\Activate.ps1"
 # Write-Host ""
 
 #
-# Installation action ("gphotopy.ps1 --install") will install python environment.
-# Update client id and client secret in files in 'auth' subdirectory where scripts are.
-# Add directory with scripts to your local user PATH.
+# If Python virtual environment is not found, try to install it.
 #
-if ($args[0] -match "--install")
-{
+if (-not (Test-Path -Path $activate_venv_path -PathType Leaf)) {
+
+  Write-Host "Python virtual environment not found, trying to install it..."
+
   if ($exec_dir -ne $script_dir) {
-    Write-Host "error: Install must run from directory where Python script is located. Change directory and try again."
-    return
+    Write-Host "Changing working folder to location of Python script: $script_dir"
+    Set-Location -Path $script_dir
   }
 
   Write-Host "Setting up Python virtual environment..."
@@ -54,21 +54,16 @@ if ($args[0] -match "--install")
   Write-Host "INFO:"
   Write-Host "INFO: * Update client id and secret inside 'auth/client_id.json'."
   Write-Host "INFO:"
-  Write-Host "INFO: * Run again with '--auth' argument. This will open default system browser."
+  Write-Host "INFO: * Run with '--auth' argument. This will open default system browser."
   Write-Host "INFO:   Works best with Chrome. Issues with Firefox."
-  Write-Host "INFO:"
-  Write-Host "INFO: * Add 'bin/' directory with Bash, PS1 and other native scripts to your 'PATH'"
-  Write-Host "INFO:   variable and use them from command line (not python script 'gphoto.py')."
   Write-Host "INFO:"
   Write-Host "INFO: * Run 'gphotopy.ps1 -h' for help."
   Write-Host ""
-  return
-}
 
-if (-not (Test-Path -Path $activate_venv_path -PathType Leaf)) {
-  Write-Host "error: Virtual environment for Python script not found."
-  Write-Host "error: Run 'gphotopy.ps1 --install' from script directory."
-  return
+  if ($exec_dir -ne $script_dir) {
+    Write-Host "Changing back to working folder and attempting to run Python script from there."
+    Set-Location -Path $exec_dir
+  }
 }
 
 Invoke-Expression $activate_venv_path

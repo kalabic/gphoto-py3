@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 
 #
-# Wrapper for gphoto.py to enable it to be used from any location from command line.
-# Add directory where you downloaded files from repository to local user PATH.
+# Wrapper for Python scripts to enable them to be used from any location from command line.
+# Add directory with native system scripts to local user PATH.
 #
+
+python_name=python3
 
 # Where is script called from.
 exec_dir=$(pwd -P)
@@ -13,22 +15,21 @@ exec_dir=$(pwd -P)
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && cd ..; pwd -P)
 
 #
-# Installation action ("gphotopy --install") will install python environment.
-# Update client id and client secret in files in 'auth' subdirectory where scripts are.
-# Add directory with scripts to your local user PATH.
+# If Python virtual environment is not found, try to install it.
 #
-if [ "$1" = "--install" ]
+if [ ! -f "$script_dir/venv/bin/activate" ]
 then
+  echo "Python virtual environment not found, trying to install it..."
 
   if ! [ "$exec_dir" = "$script_dir" ]
   then
-    echo "error: Install must run from directory where Python script is located. Change directory and try again."
-    exit 1
+    echo "Changing working folder to location of Python script: $script_dir"
+    cd $script_dir
   fi
 
   echo "Setting up Python virtual environment..."
 
-  if ! python3.10 -m venv venv
+  if ! $python_name -m venv venv
   then
     echo "error: venv failed, cannot continue"
     exit 1
@@ -47,19 +48,21 @@ then
   fi
 
   echo ""
-  echo "INFO: Installation done. You need to authorize with Google now:"
+  echo "INFO: Installation done. Authenticate with Google now:"
   echo "INFO:"
   echo "INFO: * Update client id and secret inside 'auth/client_id.json'."
   echo "INFO:"
-  echo "INFO: * Run again with '--auth' argument. This will open default system browser."
+  echo "INFO: * Run with '--auth' argument. This will open default system browser."
   echo "INFO:   Works best with Chrome. Issues with Firefox."
-  echo "INFO:"
-  echo "INFO: * Add 'bin/' directory with Bash, PS1 and other native scripts to your 'PATH'"
-  echo "INFO:   variable and use them from command line (not python script 'gphoto.py')."
   echo "INFO:"
   echo "INFO: * Run 'gphotopy -h' for help."
   echo ""
-  exit 0
+
+  if ! [ "$exec_dir" = "$script_dir" ]
+  then
+    echo "Changing back to working folder and attempting to run Python script from there."
+    cd $exec_dir
+  fi
 fi
 
 script_args=""
@@ -84,14 +87,6 @@ do
 
 done
 
-if [ ! -f "$script_dir/venv/bin/activate" ]
-then
-  echo "error: venv failed, cannot continue"
-  exit 1
-fi
-
-set -e
-
 if ! source "$script_dir/venv/bin/activate"
 then
   echo "error: venv failed, cannot continue"
@@ -99,7 +94,7 @@ then
 fi
 
 # For debugging: set -o xtrace
-bash -c "python3.10 -u $script_dir/gphoto.py $script_args"
+bash -c "$python_name -u $script_dir/gphoto.py $script_args"
 
 # Exit with the same result like gphoto.py from python shell above.
 exit $?
