@@ -49,6 +49,9 @@ if (-not (Test-Path -Path $activate_venv_path -PathType Leaf)) {
   # Exit Python virtual environment that was activated above.
   deactivate
 
+  # Add direcotry with native scripts to local user PATH variable. (local scope, not system-wide)
+  .\bin\shellpath.ps1 add .\bin\
+
   if ($exec_dir -ne $script_dir) {
     Write-Host "Changing back to working folder and attempting to run Python script from there."
     Set-Location -Path $exec_dir

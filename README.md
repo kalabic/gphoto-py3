@@ -1,8 +1,22 @@
-# bin/gphotopy, bin/gphotopy.ps1
-Bash and PowerShell wrappers for `gphoto.py`. Use them with the same command line arguments (see help: `gphotopy -h`).
+# Native scripts
+## bin/gphotopy.ps1, bin/gphotopy.bat
+Windows script wrappers for `gphoto.py`. Double-click `install_gphoto.bat` from Explorer and that should add it to user's PATH. Re-open CMD or PowerShell and try using it the same way like Python script:
+```
+Microsoft Windows [Version 10.0.19045.2965]
+(c) Microsoft Corporation. All rights reserved.
 
-## Installing and running
-***First and foremost***, add 'bin' subdirectory with native shell scripts from here to your PATH environment variable. And make sure you are able to start them from other places from command line, for example your home folder. There is no point in using them if this does not work for you.
+C:\Users\TestUser>gphotopy --ls
+PHOTO ALBUM                                        | # PHOTOS | IS WRITEABLE?
+Screenshots                                        |       26 | False
+
+C:\Users\TestUser>
+```
+
+## bin/gphotopy
+Bash wrapper for `gphoto.py`.
+
+### Installing and running
+***First and foremost***, add 'bin' subdirectory with Bash script to your PATH environment variable. Now make sure you are able to start it from other places from command line, for example your home folder. There is no point in using it if this does not work for you.
 
 1. Check that you have Python 3.10+ installed on your system. Probably works with few older versions, but you never know.
 2. From home folder or anywhere else (it should work assuming PATH was updated), try running native script without any arguments. It will automatically start setting up Python virtual environment inside Python script directory, as expected.
@@ -14,7 +28,7 @@ Bash and PowerShell wrappers for `gphoto.py`. Use them with the same command lin
 
 And now you should be able to upload to Google Photo from command line from any location on your disk. Native scripts will automatically start Python script inside Python virtual environment and pass all provided arguments.
 
-## NOTE:
+### NOTE:
 1. Although script is fairly simple, you need to be familiar with Google's Cloud platform to get your own client id and client secret to enable it to use Google's server APIs. More details here in [wiki](https://github.com/kalabic/gphotos-upload-py3/wiki#google-photos-api-prerequisites).
 2. Authentication will open default system browser. Works best with Chrome/Chromium, issues have been found with Firefox.
 3. Script can only upload to albums that it has created. It does not have permission to upload to albums user has created manually through Google Photos web page. Pay attention to "IS WRITABLE?" value when listing all albums using "--ls" option.
