@@ -49,17 +49,6 @@ if (-not (Test-Path -Path $activate_venv_path -PathType Leaf)) {
   # Exit Python virtual environment that was activated above.
   deactivate
 
-  Write-Host ""
-  Write-Host "INFO: Installation done. You need to authorize with Google now:"
-  Write-Host "INFO:"
-  Write-Host "INFO: * Update client id and secret inside 'auth/client_id.json'."
-  Write-Host "INFO:"
-  Write-Host "INFO: * Run with '--auth' argument. This will open default system browser."
-  Write-Host "INFO:   Works best with Chrome. Issues with Firefox."
-  Write-Host "INFO:"
-  Write-Host "INFO: * Run 'gphotopy.ps1 -h' for help."
-  Write-Host ""
-
   if ($exec_dir -ne $script_dir) {
     Write-Host "Changing back to working folder and attempting to run Python script from there."
     Set-Location -Path $exec_dir

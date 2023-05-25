@@ -506,6 +506,14 @@ def main():
         else:
             client_id_file = os.path.abspath(args.client_id_file)
 
+    if args.create_auth == True:
+        with open(client_id_file) as f:
+            if 'YOUR_CLIENT_ID' in f.read():
+                print("INFO: *")
+                print("INFO: * Update client id and secret in client_id.json")
+                print("INFO: *")
+                sys.exit(1)
+
     # If token_file argument is given, file must exist if argument 'auth' is not specified (so, not an authentication action).
     if args.token_file is not None:
         if args.token_file == "":

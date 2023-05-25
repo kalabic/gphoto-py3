@@ -47,17 +47,6 @@ then
     exit 1
   fi
 
-  echo ""
-  echo "INFO: Installation done. Authenticate with Google now:"
-  echo "INFO:"
-  echo "INFO: * Update client id and secret inside 'auth/client_id.json'."
-  echo "INFO:"
-  echo "INFO: * Run with '--auth' argument. This will open default system browser."
-  echo "INFO:   Works best with Chrome. Issues with Firefox."
-  echo "INFO:"
-  echo "INFO: * Run 'gphotopy -h' for help."
-  echo ""
-
   if ! [ "$exec_dir" = "$script_dir" ]
   then
     echo "Changing back to working folder and attempting to run Python script from there."
